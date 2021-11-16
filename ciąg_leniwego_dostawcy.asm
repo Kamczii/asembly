@@ -62,12 +62,12 @@ _caterer ENDP
 
 _main PROC
 mov ecx,50 ;ile wyrazów wyświetlić
-mov ebx,0 ;nr iteracji
+mov ebx,0 ;nr iteracji (n)
 mov eax,0 ;od jakiego wyrazu zacząć
 wyswietl:
 	call _caterer
-	add eax, ebx
-	inc ebx
+	add eax, ebx ; f(n-1) + n
+	inc ebx ;inkrementacja n
 	call wyswietl_EAX
 	loop wyswietl
 push 0
