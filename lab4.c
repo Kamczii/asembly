@@ -186,3 +186,104 @@ int main()
 	
 	return 0;
 }
+
+
+#include <stdio.h>
+#include <cmath>
+using namespace std;
+
+#include <iostream>
+
+// OpenCV includes
+#include <opencv2/opencv.hpp>
+using namespace cv;
+#include "TypeDefs.h"
+#define IMIE "Kamil Czepiel"
+int scale = 3;
+
+int main()
+{
+	// reading source file srcImage
+	Mat srcImage;
+	srcImage = imread( "Samples/184374_D.jpg" );
+	if ( !srcImage.data )
+	{
+		cout << "Error! Cannot read source file. Press ENTER.";
+		waitKey();
+		return( -1 );
+	}
+
+	Mat resizedImage;
+
+	resize(srcImage, resizedImage, Size(srcImage.cols/scale,srcImage.rows/scale));
+	
+	Mat grayImage;
+
+	cvtColor(resizedImage, grayImage, COLOR_BGR2GRAY);
+
+	Size patternSize(CheckerboardInnerWidth[0], CheckerboardInnerHeight[0]);
+	vector<Point2f> corners;
+	Mat output(srcImage.size().height / scale, srcImage.size().width / scale, srcImage.type());
+
+	bool found = findChessboardCorners(grayImage, patternSize,corners);
+	if (!found)
+	{
+		cout << "Nie znaleziono szachownicy";
+		waitKey();
+		return(-1);
+	}
+	else {
+		cout << "Znaleziono";
+		try {
+			cornerSubPix(grayImage, corners, patternSize, Size(CheckerboardInnerWidth[3], CheckerboardInnerHeight[3]), TermCriteria(TermCriteria::EPS + TermCriteria::MAX_ITER, 30, 0.1));
+		}
+		catch (Exception e) {
+
+			cout << "Blad: " << e.err;
+		}
+		drawChessboardCorners(grayImage, patternSize, corners, found);
+
+		int x = pow(corners[0].x - corners[1].x, 2);
+		int y = pow(corners[0].y - corners[1].y, 2);
+		float euklides = sqrt(x + y);
+		cout << "Euklides: " << euklides;
+
+		for (int i = 0; i < corners.size(); i++) {
+			Point2f corner = corners[i];
+			putText(grayImage, to_string(i), corner,FONT_HERSHEY_COMPLEX,.6,(255,255,255),1,2);
+		}
+		namedWindow(IMIE);
+		moveWindow(IMIE, 0, 0);
+		imshow(IMIE, grayImage);
+		imwrite("184374_D_TopChessboardFound.JPG", grayImage);
+		if (corners.front().y > corners.back().y)
+			reverse(corners.begin(), corners.end());
+
+		float reverseScale = 40.0f;
+		vector<Point2f> templateCorners;
+		for (int i = 1; i <= CheckerboardInnerHeight[TOP]; i++) {
+			for (int j = 1; j <= CheckerboardInnerWidth[TOP]; j++) {
+				Point2f coord;
+				coord.x = CheckerboardLTCoordinatesWithMargin[0].x + j * CHECKERBOARD_FIELD_SIZE;
+				coord.y = CheckerboardLTCoordinatesWithMargin[0].y + i * CHECKERBOARD_FIELD_SIZE;
+				templateCorners.push_back(coord * reverseScale);
+			}
+		}
+
+		Mat homography;
+		homography = findHomography(corners, templateCorners, RANSAC);
+
+		Mat dewarpedImage(srcImage.size(), srcImage.type());
+		warpPerspective(resizedImage, dewarpedImage, homography, resizedImage.size());
+		namedWindow("Dewarped Image");
+		moveWindow("Dewarped Image", 0, 0);
+		imshow("Dewarped Image", dewarpedImage);
+		imwrite("184374_D_Dewarped.JPG",dewarpedImage);
+	}
+
+
+	waitKey();
+	
+	return 0;
+}
+
